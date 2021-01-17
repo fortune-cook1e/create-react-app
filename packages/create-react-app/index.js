@@ -40,6 +40,10 @@ var currentNodeVersion = process.versions.node;
 var semver = currentNodeVersion.split('.');
 var major = semver[0];
 
+// TIP: create-react-app 需要 4.0.1 版本，所以我手动修改了版本（但是没更新）
+
+console.log('major...', { major });
+
 if (major < 10) {
   console.error(
     'You are running Node ' +

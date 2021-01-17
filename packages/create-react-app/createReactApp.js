@@ -51,12 +51,16 @@ const packageJson = require('./package.json');
 
 let projectName;
 
+/**
+ * @description: 初始化
+ */
 function init() {
   const program = new commander.Command(packageJson.name)
     .version(packageJson.version)
     .arguments('<project-directory>')
     .usage(`${chalk.green('<project-directory>')} [options]`)
     .action(name => {
+      // TIP: 初始化项目名
       projectName = name;
     })
     .option('--verbose', 'print additional logs')
@@ -140,6 +144,7 @@ function init() {
     })
     .parse(process.argv);
 
+  // 查询当前运行环境信息
   if (program.info) {
     console.log(chalk.bold('\nEnvironment Info:'));
     console.log(
@@ -169,6 +174,7 @@ function init() {
       .then(console.log);
   }
 
+  // 项目名字为空的处理
   if (typeof projectName === 'undefined') {
     console.error('Please specify the project directory:');
     console.log(
@@ -192,6 +198,8 @@ function init() {
   // This is important for users in environments where direct access to npm is
   // blocked by a firewall, and packages are provided exclusively via a private
   // registry.
+
+  // 检查当前create-react-app 版本是否落后 latest版本,是则停止
   checkForLatestVersion()
     .catch(() => {
       try {
@@ -223,6 +231,7 @@ function init() {
         console.log();
         process.exit(1);
       } else {
+        // TIP: 进入创建应用的函数
         createApp(
           projectName,
           program.verbose,
@@ -235,8 +244,20 @@ function init() {
     });
 }
 
+/**
+ * @description: 创建项目
+ * @param {*} name 项目名
+ * @param {*} verbose 打印额外日志
+ * @param {*} version --scripts-version 版本
+ * @param {*} template
+ * @param {*} useNpm
+ * @param {*} usePnp
+ * @return {*}
+ */
 function createApp(name, verbose, version, template, useNpm, usePnp) {
   const unsupportedNodeVersion = !semver.satisfies(process.version, '>=10');
+  console.log(chalk.yellow('enter createApp:'));
+  console.log('Params', { name, verbose, version, template, useNpm, usePnp });
   if (unsupportedNodeVersion) {
     console.log(
       chalk.yellow(
@@ -248,17 +269,18 @@ function createApp(name, verbose, version, template, useNpm, usePnp) {
     version = 'react-scripts@0.9.x';
   }
 
-  const root = path.resolve(name);
-  const appName = path.basename(root);
+  const root = path.resolve(name); // 安装路径
+  const appName = path.basename(root); // 安装文件名
 
-  checkAppName(appName);
-  fs.ensureDirSync(name);
+  checkAppName(appName); // 检查项目名
+  fs.ensureDirSync(name); // 创建目录
   if (!isSafeToCreateProjectIn(root, name)) {
     process.exit(1);
   }
   console.log();
 
   console.log(`Creating a new React app in ${chalk.green(root)}.`);
+  console.log('Path appname:', { appName });
   console.log();
 
   const packageJson = {
@@ -272,8 +294,8 @@ function createApp(name, verbose, version, template, useNpm, usePnp) {
   );
 
   const useYarn = useNpm ? false : shouldUseYarn();
-  const originalDirectory = process.cwd();
-  process.chdir(root);
+  const originalDirectory = process.cwd(); // 切换前的路径
+  process.chdir(root); // 将nodejs进程切换到 执行的工作目录
   if (!useYarn && !checkThatNpmCanReadCwd()) {
     process.exit(1);
   }
@@ -293,6 +315,7 @@ function createApp(name, verbose, version, template, useNpm, usePnp) {
       version = 'react-scripts@0.9.x';
     }
   } else if (usePnp) {
+    //TIP:  使用yarn的情况
     const yarnInfo = checkYarnVersion();
     if (yarnInfo.yarnVersion) {
       if (!yarnInfo.hasMinYarnPnp) {
@@ -346,6 +369,10 @@ function createApp(name, verbose, version, template, useNpm, usePnp) {
   );
 }
 
+/**
+ * @description:  能否使用 yarn
+ * @return {boolean}
+ */
 function shouldUseYarn() {
   try {
     execSync('yarnpkg --version', { stdio: 'ignore' });
@@ -355,7 +382,27 @@ function shouldUseYarn() {
   }
 }
 
+/**
+ * @description: 安装依赖
+ * @param {*} root
+ * @param {*} useYarn
+ * @param {*} usePnp
+ * @param {*} dependencies
+ * @param {*} verbose
+ * @param {*} isOnline 是否有网
+ * @return {*}
+ */
 function install(root, useYarn, usePnp, dependencies, verbose, isOnline) {
+  console.log(chalk.yellow('Enter Install'));
+  console.log('params:', {
+    root,
+    useYarn,
+    usePnp,
+    dependencies,
+    verbose,
+    isOnline,
+  });
+
   return new Promise((resolve, reject) => {
     let command;
     let args;
@@ -405,6 +452,7 @@ function install(root, useYarn, usePnp, dependencies, verbose, isOnline) {
     }
 
     const child = spawn(command, args, { stdio: 'inherit' });
+    console.log('install args..', { args });
     child.on('close', code => {
       if (code !== 0) {
         reject({
@@ -417,6 +465,18 @@ function install(root, useYarn, usePnp, dependencies, verbose, isOnline) {
   });
 }
 
+/**
+ * @description: 核心内容
+ * @param {*} root
+ * @param {*} appName
+ * @param {*} version
+ * @param {*} verbose
+ * @param {*} originalDirectory
+ * @param {*} template
+ * @param {*} useYarn
+ * @param {*} usePnp
+ * @return {*}
+ */
 function run(
   root,
   appName,
@@ -427,27 +487,59 @@ function run(
   useYarn,
   usePnp
 ) {
+  console.log(chalk.yellow('Enter run'));
+  console.log('params:', {
+    root,
+    appName,
+    version,
+    verbose,
+    originalDirectory,
+    template,
+    useYarn,
+    usePnp,
+  });
+
+  // 先获取 react-scripts 版本和需要安装的cra模板
+  // 一般得到 react-scripts 和  cra-template
   Promise.all([
     getInstallPackage(version, originalDirectory),
     getTemplateInstallPackage(template, originalDirectory),
   ]).then(([packageToInstall, templateToInstall]) => {
+    console.log('run promise all result:', {
+      packageToInstall,
+      templateToInstall,
+    });
+    console.log();
+
+    // 拿到最基础的依赖
     const allDependencies = ['react', 'react-dom', packageToInstall];
 
     console.log('Installing packages. This might take a couple of minutes.');
 
+    // 拿到 react-scripts 和 cra-template name和version信息
+    // 默认情况下 没有version信息
     Promise.all([
       getPackageInfo(packageToInstall),
       getPackageInfo(templateToInstall),
     ])
-      .then(([packageInfo, templateInfo]) =>
-        checkIfOnline(useYarn).then(isOnline => ({
+      .then(([packageInfo, templateInfo]) => {
+        console.log('GetPackageInfo result...', { packageInfo, templateInfo });
+
+        return checkIfOnline(useYarn).then(isOnline => ({
           isOnline,
           packageInfo,
           templateInfo,
-        }))
-      )
+        }));
+      })
       .then(({ isOnline, packageInfo, templateInfo }) => {
         let packageVersion = semver.coerce(packageInfo.version);
+
+        console.log('checkIfOnline result...:', {
+          isOnline,
+          packageInfo,
+          templateInfo,
+        });
+        console.log('packageInfo version', packageVersion);
 
         const templatesVersionMinimum = '3.3.0';
 
@@ -457,10 +549,17 @@ function run(
         }
 
         // Only support templates when used alongside new react-scripts versions.
+
+        // 比较 react-scripts 版本是否大于等于 3.3.0
         const supportsTemplates = semver.gte(
           packageVersion,
           templatesVersionMinimum
         );
+
+        console.log('supportsTemplates result...', {
+          supportsTemplates,
+          packageVersion,
+        });
         if (supportsTemplates) {
           allDependencies.push(templateToInstall);
         } else if (template) {
@@ -480,8 +579,10 @@ function run(
             supportsTemplates ? ` with ${chalk.cyan(templateInfo.name)}` : ''
           }...`
         );
-        console.log();
+        console.log('allDependencies...', allDependencies);
+        console.log('');
 
+        // 进入安装
         return install(
           root,
           useYarn,
@@ -496,6 +597,12 @@ function run(
         }));
       })
       .then(async ({ packageInfo, supportsTemplates, templateInfo }) => {
+        console.log('after install async func', {
+          packageInfo,
+          supportsTemplates,
+          templateInfo,
+        });
+
         const packageName = packageInfo.name;
         const templateName = supportsTemplates ? templateInfo.name : undefined;
         checkNodeVersion(packageName);
@@ -504,6 +611,12 @@ function run(
         const pnpPath = path.resolve(process.cwd(), '.pnp.js');
 
         const nodeArgs = fs.existsSync(pnpPath) ? ['--require', pnpPath] : [];
+
+        console.log('before executeNodeScript...', {
+          packageInfo,
+          supportsTemplates,
+          templateInfo,
+        });
 
         await executeNodeScript(
           {
@@ -572,9 +685,17 @@ function run(
   });
 }
 
+/**
+ * @description: 获取 react-script 安装版本或安装路径信息
+ * @param {*} version --scripts-version 版本
+ * @param {*} originalDirectory
+ * @return {*} 得到react-scripts安装版本
+ */
 function getInstallPackage(version, originalDirectory) {
+  console.log(chalk.yellow('Enter getInstallPackage'));
   let packageToInstall = 'react-scripts';
   const validSemver = semver.valid(version);
+
   if (validSemver) {
     packageToInstall += `@${validSemver}`;
   } else if (version) {
@@ -624,6 +745,12 @@ function getInstallPackage(version, originalDirectory) {
   return Promise.resolve(packageToInstall);
 }
 
+/**
+ * @description: 获取需要安装的模版名
+ * @param {*} template 模版名 由命令 template 决定 一般为 undefined
+ * @param {*} originalDirectory create-react-app 命令执行目录
+ * @return {templateToInstall}
+ */
 function getTemplateInstallPackage(template, originalDirectory) {
   let templateToInstall = 'cra-template';
   if (template) {
@@ -671,6 +798,11 @@ function getTemplateInstallPackage(template, originalDirectory) {
   return Promise.resolve(templateToInstall);
 }
 
+/**
+ * @description:
+ * @param {*}
+ * @return {*}
+ */
 function getTemporaryDirectory() {
   return new Promise((resolve, reject) => {
     // Unsafe cleanup lets us recursively delete the directory if it contains
@@ -695,6 +827,12 @@ function getTemporaryDirectory() {
   });
 }
 
+/**
+ * @description:
+ * @param {*} stream
+ * @param {*} dest
+ * @return {*}
+ */
 function extractStream(stream, dest) {
   return new Promise((resolve, reject) => {
     stream.pipe(
@@ -709,8 +847,15 @@ function extractStream(stream, dest) {
   });
 }
 
-// Extract package name from tarball url or path.
+/**
+ * @description: Extract package name from tarball url or path.
+ * @param {*} installPackage
+ * @return {*}
+ */
 function getPackageInfo(installPackage) {
+  console.log(chalk.yellow('Enter getPackageInfo...'));
+  console.log('installPackage Params:', installPackage);
+
   if (installPackage.match(/^.+\.(tgz|tar\.gz)$/)) {
     return getTemporaryDirectory()
       .then(obj => {
@@ -770,6 +915,10 @@ function getPackageInfo(installPackage) {
   return Promise.resolve({ name: installPackage });
 }
 
+/**
+ * @description: 检查npm版本
+ * @return {*} hasMinNpm:当前版本是否大于等于6.0.0    当前npm版本
+ */
 function checkNpmVersion() {
   let hasMinNpm = false;
   let npmVersion = null;
@@ -785,6 +934,10 @@ function checkNpmVersion() {
   };
 }
 
+/**
+ * @description: 检查yarn版本
+ * @return {hasMinYarnPnp,hasMaxYarnPnp,yarnVersion
+ */
 function checkYarnVersion() {
   const minYarnPnp = '1.12.0';
   const maxYarnPnp = '2.0.0';
@@ -848,6 +1001,10 @@ function checkNodeVersion(packageName) {
   }
 }
 
+/**
+ * @description: 检查项目名
+ * @param {*} appName
+ */
 function checkAppName(appName) {
   const validationResult = validateProjectName(appName);
   if (!validationResult.validForNewPackages) {
@@ -933,6 +1090,13 @@ function setCaretRangeForRuntimeDeps(packageName) {
 // installation, lets remove them now.
 // We also special case IJ-based products .idea because it integrates with CRA:
 // https://github.com/facebook/create-react-app/pull/368#issuecomment-243446094
+
+/**
+ * @description: 判断当前安装文件夹是否有 错误日志的文件。有则 return false
+ * @param {*} root create-react-app 创建项目的目录(绝对路径)
+ * @param {*} name create-react-app 创建项目的项目名
+ * @return {boolean}
+ */
 function isSafeToCreateProjectIn(root, name) {
   const validFiles = [
     '.DS_Store',
@@ -1005,6 +1169,10 @@ function isSafeToCreateProjectIn(root, name) {
   return true;
 }
 
+/**
+ * @description: 获取代理 一般情况下返回 undefined
+ * @return {*} httpsProxy or undefined
+ */
 function getProxy() {
   if (process.env.https_proxy) {
     return process.env.https_proxy;
@@ -1020,6 +1188,10 @@ function getProxy() {
 }
 
 // See https://github.com/facebook/create-react-app/pull/3355
+/**
+ * @description: 查看npm能否读取当前安装目录
+ * @return {boolean}
+ */
 function checkThatNpmCanReadCwd() {
   const cwd = process.cwd();
   let childOutput = null;
@@ -1030,6 +1202,8 @@ function checkThatNpmCanReadCwd() {
     // to reproduce the wrong path. Just printing process.cwd()
     // in a Node process was not enough.
     childOutput = spawn.sync('npm', ['config', 'list']).output.join('');
+    console.log(chalk.yellow('Enter checkThatNpmCanReadCwd...'));
+    console.log('childOutput...', { childOutput });
   } catch (err) {
     // Something went wrong spawning node.
     // Not great, but it means we can't do this check.
@@ -1081,7 +1255,13 @@ function checkThatNpmCanReadCwd() {
   return false;
 }
 
+/**
+ * @description: 检查是否有网
+ * @param {*} useYarn
+ * @return {boolean}
+ */
 function checkIfOnline(useYarn) {
+  console.log(chalk.yellow('Enter checkIfOnline'));
   if (!useYarn) {
     // Don't ping the Yarn registry.
     // We'll just assume the best case.
@@ -1124,6 +1304,9 @@ function executeNodeScript({ cwd, args }, data, source) {
   });
 }
 
+/**
+ * @description: 检查creact-react-app 版本
+ */
 function checkForLatestVersion() {
   return new Promise((resolve, reject) => {
     https

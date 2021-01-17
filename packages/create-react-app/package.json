@@ -1,6 +1,6 @@
 {
-  "name": "create-react-app",
-  "version": "4.0.0",
+  "name": "create-app",
+  "version": "4.0.1",
   "keywords": [
     "react"
   ],
@@ -23,7 +23,7 @@
     "yarn.lock.cached"
   ],
   "bin": {
-    "create-react-app": "./index.js"
+    "create-app": "./index.js"
   },
   "scripts": {
     "test": "cross-env FORCE_COLOR=true jest"
